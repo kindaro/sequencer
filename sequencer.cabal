@@ -1,0 +1,31 @@
+cabal-version: 2.4
+
+name: sequencer
+version: 0.1.0.0
+license: ISC
+author: Ignat Insarov
+maintainer: kindaro@gmail.com
+
+common commons
+    build-depends: base ^>=4.12.0.0
+                 , mtl
+                 , exceptions
+    default-language: Haskell2010
+    default-extensions: ExistentialQuantification
+                      , ScopedTypeVariables
+                      , BlockArguments
+    ghc-options:
+        -Wall
+        -Wcompat
+        -Widentities
+        -Wincomplete-record-updates
+        -Wincomplete-uni-patterns
+        -Wpartial-fields
+        -Wredundant-constraints
+        -Wnoncanonical-monad-instances
+        -Wnoncanonical-monadfail-instances
+
+library
+    import: commons
+    exposed-modules: Control.Sequencer
+    hs-source-dirs: lib
