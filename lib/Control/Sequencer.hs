@@ -39,8 +39,7 @@ independent' logger = alternativeTranscode f
 interleaved :: forall a m e ins outs.
                 (Exception e, MonadCatch m, Traversable ins, Alternative outs)
             => ins (m a) -> m (outs (Either e a))
-interleaved = alternativeTranscode f
-    where f u = fmap (pure . Right) u `catchSynchronous` (return . pure . Left)
+interleaved = alternativeTranscode (fmap pure . trySynchronous)
 
 insistent :: (MonadCatch m, MonadWriter (q SomeException) m, Alternative q)
           => Word -> m a -> m a
@@ -50,17 +49,12 @@ redundant :: (MonadCatch m, MonadWriter (q SomeException) m, Foldable f, Alterna
           => f (m a) -> m a
 redundant = foldr1 f where f x y = x `logSynchronous` const y
 
--- Log everything going in and out, and provide the same for analysis.
---
--- Logging is a monadic action, so loggers can be sewn inside the environment.
---
--- We must edit the process description to launch the `timeout` program available on Unix.
---
--- transparent :: ProcessDescription a b c -> 
-
 catchSynchronous :: forall e m a. (Exception e, MonadCatch m) => m a -> (e -> m a) -> m a
 catchSynchronous action handler = action `catches`
     [ Handler (throwM :: SomeAsyncException -> m w), Handler handler ]
+
+trySynchronous :: forall e m a. (Exception e, MonadCatch m) => m a -> m (Either e a)
+trySynchronous x = fmap Right x `catchSynchronous` (return . Left)
 
 logSynchronous :: (Exception e, MonadCatch m, MonadWriter (q e) m, Alternative q)
                  => m a -> (e -> m a) -> m a
