@@ -30,4 +30,13 @@ common commons
 library
     import: commons
     exposed-modules: Control.Sequencer
+                   , Control.Sequencer.Internal
     hs-source-dirs: lib
+
+test-suite verify
+    import: commons
+    build-depends: sequencer
+                 , random
+    hs-source-dirs: verify
+    type: exitcode-stdio-1.0
+    main-is: Main.hs

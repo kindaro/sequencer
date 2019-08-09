@@ -7,20 +7,14 @@ module Control.Sequencer
     , SequencingFailure
     ) where
 
-import Control.Exception (Exception, SomeException, SomeAsyncException, displayException)
-import Control.Monad.Catch (MonadCatch, Handler(..), throwM, catches)
+import Control.Exception (Exception, SomeException)
+import Control.Monad.Catch (MonadCatch)
 import Control.Monad.Writer.Strict (MonadWriter, tell)
 import Control.Applicative (Alternative, empty)
-import Data.Foldable (asum)
 import Data.List (genericReplicate)
 import Data.Sequence (Seq)
 
-data SequencingFailure = SequencingFailure deriving Show
-instance Exception SequencingFailure where displayException _ = "sequencing failure"
-
-alternativeTranscode :: (Traversable ins, Alternative outs, Monad m)
-                     => (m a -> m (outs b)) -> ins (m a) -> m (outs b)
-alternativeTranscode f = fmap asum . sequence . fmap f
+import Control.Sequencer.Internal
 
 -- | Run all the actions independently, collect the results in a list and log the errors in a
 -- sequence.
@@ -48,17 +42,6 @@ insistent n = redundant . genericReplicate n
 redundant :: (MonadCatch m, MonadWriter (q SomeException) m, Foldable f, Alternative q)
           => f (m a) -> m a
 redundant = foldr1 f where f x y = x `logSynchronous` const y
-
-catchSynchronous :: forall e m a. (Exception e, MonadCatch m) => m a -> (e -> m a) -> m a
-catchSynchronous action handler = action `catches`
-    [ Handler (throwM :: SomeAsyncException -> m w), Handler handler ]
-
-trySynchronous :: forall e m a. (Exception e, MonadCatch m) => m a -> m (Either e a)
-trySynchronous x = fmap Right x `catchSynchronous` (return . Left)
-
-logSynchronous :: (Exception e, MonadCatch m, MonadWriter (q e) m, Alternative q)
-                 => m a -> (e -> m a) -> m a
-logSynchronous action handler = catchSynchronous action (\e -> (tell . pure) e *> handler e)
 
 -- rarelyFail = randomRIO (1 :: Word, 10) >>= \x -> if x == 7 then throw Overflow else return ()
 -- oftenFail = randomRIO (1 :: Word, 10) >>= \x -> if x /= 7 then throw Overflow else return ()
