@@ -6,22 +6,19 @@ import Control.Monad.Writer.Strict (MonadWriter, tell)
 import Control.Applicative (Alternative, empty)
 import Data.Foldable (asum)
 import Data.List (genericReplicate)
+import Data.Sequence (Seq)
 
--- Run all of the action and collect all the results and synchronous exceptions.
---
--- An asynchronous exception must lead to immediate termination.
---
--- independent :: forall m q f a. (MonadPlus m, MonadCatch m, MonadWriter (q SomeException) m, Functor f, Foldable f, Alternative q)
---             => f (m a) -> m (q a)
+-- | Run all the actions independently, collect the results in a list and log the errors in a
+-- sequence.
+independent :: forall a m ins. (MonadWriter (Seq SomeException) m, MonadCatch m, Traversable ins)
+            => ins (m a) -> m [a]
+independent = independent' (tell . pure)
 
-independent :: forall q m t s a e. ( Exception e, MonadWriter (q e) m, MonadCatch m
-                                 , Traversable t, Alternative q, Alternative s )
-            => t (m a) -> m (s a)
-independent = fmap asum . sequence . fmap f
-    where f u = fmap pure u `logSynchronous` const (return empty)
-
-independent' :: forall m t s a e. ( Exception e, MonadCatch m, Traversable t, Alternative s )
-            => (e -> m ()) -> t (m a) -> m (s a)
+-- | Run all the actions independently, collect the results and log the errors with the supplied
+-- logger.
+independent' :: forall a m e ins outs.
+                    (Exception e, MonadCatch m, Traversable ins, Alternative outs)
+             => (e -> m ()) -> ins (m a) -> m (outs a)
 independent' logger = fmap asum . sequence . fmap f
     where f u = fmap pure u `catchSynchronous` \e -> logger e *> return empty
 
