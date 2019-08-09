@@ -16,20 +16,22 @@ import Data.Sequence (Seq)
 
 import Control.Sequencer.Internal
 
--- | Run all the actions independently, collect the results in a list and log the errors in a
--- sequence.
+-- | Run all the actions independently from each other, collect the results in a list and log the
+-- errors in a sequence.
 independent :: forall a m ins. (MonadWriter (Seq SomeException) m, MonadCatch m, Traversable ins)
             => ins (m a) -> m [a]
 independent = independent' (tell . pure)
 
--- | Run all the actions independently, collect the results and log the errors with the supplied
--- logger.
+-- | Run all the actions independently from each other, collect the results and log the errors
+-- with the supplied logger.
 independent' :: forall a m e ins outs.
                     (Exception e, MonadCatch m, Traversable ins, Alternative outs)
              => (e -> m ()) -> ins (m a) -> m (outs a)
 independent' logger = alternativeTranscode f
     where f u = fmap pure u `catchSynchronous` \e -> logger e *> return empty
 
+-- | Run all the actions independently from each other, collecting the results and errors in
+-- `Either`.
 interleaved :: forall a m e ins outs.
                 (Exception e, MonadCatch m, Traversable ins, Alternative outs)
             => ins (m a) -> m (outs (Either e a))
