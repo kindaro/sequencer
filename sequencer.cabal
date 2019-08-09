@@ -16,6 +16,7 @@ common commons
                       , ScopedTypeVariables
                       , BlockArguments
                       , FlexibleContexts
+                      , TypeApplications
     ghc-options:
         -Wall
         -Wcompat
@@ -37,6 +38,11 @@ test-suite verify
     import: commons
     build-depends: sequencer
                  , random
+                 , tasty
+                 , tasty-hunit
     hs-source-dirs: verify
     type: exitcode-stdio-1.0
     main-is: Main.hs
+    other-modules: Common
+                 , Internal
+                 , External
