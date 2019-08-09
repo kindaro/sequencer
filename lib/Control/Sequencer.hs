@@ -18,6 +18,10 @@ import Data.Sequence (Seq)
 data SequencingFailure = SequencingFailure deriving Show
 instance Exception SequencingFailure where displayException _ = "sequencing failure"
 
+alternativeTranscode :: (Traversable ins, Alternative outs, Monad m)
+                     => (m a -> m (outs b)) -> ins (m a) -> m (outs b)
+alternativeTranscode f = fmap asum . sequence . fmap f
+
 -- | Run all the actions independently, collect the results in a list and log the errors in a
 -- sequence.
 independent :: forall a m ins. (MonadWriter (Seq SomeException) m, MonadCatch m, Traversable ins)
@@ -29,13 +33,13 @@ independent = independent' (tell . pure)
 independent' :: forall a m e ins outs.
                     (Exception e, MonadCatch m, Traversable ins, Alternative outs)
              => (e -> m ()) -> ins (m a) -> m (outs a)
-independent' logger = fmap asum . sequence . fmap f
+independent' logger = alternativeTranscode f
     where f u = fmap pure u `catchSynchronous` \e -> logger e *> return empty
 
 interleaved :: forall a m e ins outs.
                 (Exception e, MonadCatch m, Traversable ins, Alternative outs)
             => ins (m a) -> m (outs (Either e a))
-interleaved = fmap asum . sequence . fmap f
+interleaved = alternativeTranscode f
     where f u = fmap (pure . Right) u `catchSynchronous` (return . pure . Left)
 
 insistent :: (MonadCatch m, MonadWriter (q SomeException) m, Alternative q)
