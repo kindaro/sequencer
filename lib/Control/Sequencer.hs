@@ -1,4 +1,11 @@
-module Control.Sequencer where
+module Control.Sequencer
+    ( independent
+    , independent'
+    , interleaved
+    , insistent
+    , redundant
+    , SequencingFailure
+    ) where
 
 import Control.Exception (Exception, SomeException, SomeAsyncException, displayException)
 import Control.Monad.Catch (MonadCatch, Handler(..), throwM, catches)
@@ -7,6 +14,9 @@ import Control.Applicative (Alternative, empty)
 import Data.Foldable (asum)
 import Data.List (genericReplicate)
 import Data.Sequence (Seq)
+
+data SequencingFailure = SequencingFailure deriving Show
+instance Exception SequencingFailure where displayException _ = "sequencing failure"
 
 -- | Run all the actions independently, collect the results in a list and log the errors in a
 -- sequence.
@@ -43,9 +53,6 @@ redundant = foldr1 f where f x y = x `logSynchronous` const y
 -- We must edit the process description to launch the `timeout` program available on Unix.
 --
 -- transparent :: ProcessDescription a b c -> 
-
-data SequencingFailure = SequencingFailure deriving Show
-instance Exception SequencingFailure where displayException _ = "sequencing failure"
 
 catchSynchronous :: forall e m a. (Exception e, MonadCatch m) => m a -> (e -> m a) -> m a
 catchSynchronous action handler = action `catches`
