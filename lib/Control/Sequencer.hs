@@ -32,11 +32,11 @@ independent' :: forall a m e ins outs.
 independent' logger = fmap asum . sequence . fmap f
     where f u = fmap pure u `catchSynchronous` \e -> logger e *> return empty
 
-interleaved :: MonadCatch m => [m a] -> m [Either SomeException a]
-interleaved [ ] = return [ ]
-interleaved (x: xs) = do
-    r <- fmap (pure . Right) x `catchSynchronous` \e -> (pure . pure . Left) (e:: SomeException)
-    fmap (r ++) (interleaved xs)
+interleaved :: forall a m e ins outs.
+                (Exception e, MonadCatch m, Traversable ins, Alternative outs)
+            => ins (m a) -> m (outs (Either e a))
+interleaved = fmap asum . sequence . fmap f
+    where f u = fmap (pure . Right) u `catchSynchronous` (return . pure . Left)
 
 insistent :: (MonadCatch m, MonadWriter (q SomeException) m, Alternative q)
           => Word -> m a -> m a
