@@ -1,7 +1,6 @@
 module Control.Sequencer
     ( independent
     , independent'
-    , interleaved
     , insistent
     , redundant
     , SequencingFailure
@@ -29,13 +28,6 @@ independent' :: forall a m e ins outs.
              => (e -> m ()) -> ins (m a) -> m (outs a)
 independent' logger = alternativeTranscode f
     where f u = fmap pure u `catchSynchronous` \e -> logger e *> return empty
-
--- | Run all the actions independently from each other, collecting the results and errors in
--- `Either`.
-interleaved :: forall a m e ins outs.
-                (Exception e, MonadCatch m, Traversable ins, Alternative outs)
-            => ins (m a) -> m (outs (Either e a))
-interleaved = alternativeTranscode (fmap pure . trySynchronous)
 
 insistent :: (MonadCatch m, MonadWriter (q SomeException) m, Alternative q)
           => Word -> m a -> m a
