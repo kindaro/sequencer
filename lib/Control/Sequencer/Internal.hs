@@ -2,7 +2,6 @@ module Control.Sequencer.Internal where
 
 import Control.Exception (Exception, SomeAsyncException, displayException)
 import Control.Monad.Catch (MonadCatch, Handler(..), throwM, catches)
-import Control.Monad.Writer.Strict (MonadWriter, tell)
 import Control.Applicative (Alternative)
 import Data.Foldable (asum)
 
@@ -19,7 +18,3 @@ catchSynchronous action handler = action `catches`
 
 trySynchronous :: forall e m a. (Exception e, MonadCatch m) => m a -> m (Either e a)
 trySynchronous x = fmap Right x `catchSynchronous` (return . Left)
-
-logSynchronous :: (Exception e, MonadCatch m, MonadWriter (q e) m, Alternative q)
-                 => m a -> (e -> m a) -> m a
-logSynchronous action handler = catchSynchronous action (\e -> (tell . pure) e *> handler e)

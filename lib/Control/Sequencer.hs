@@ -43,12 +43,4 @@ insistent n = redundant . genericReplicate n
 
 redundant :: (MonadCatch m, MonadWriter (q SomeException) m, Foldable f, Alternative q)
           => f (m a) -> m a
-redundant = foldr1 f where f x y = x `logSynchronous` const y
-
--- rarelyFail = randomRIO (1 :: Word, 10) >>= \x -> if x == 7 then throw Overflow else return ()
--- oftenFail = randomRIO (1 :: Word, 10) >>= \x -> if x /= 7 then throw Overflow else return ()
-
--- λ runWriterT $ insistent 10 (lift oftenFail) :: IO ((), Proxy SomeException)
--- ((),Proxy)
--- λ runWriterT $ insistent 10 (lift oftenFail) :: IO ((), Proxy SomeException)
--- *** Exception: SequencingFailure
+redundant = foldr1 f where f x y = x `catchSynchronous` (\e -> (tell . pure) e *> y)
