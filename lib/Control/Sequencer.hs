@@ -13,7 +13,7 @@ import Control.Monad.Writer.Strict (MonadWriter, tell)
 import Control.Applicative (Alternative, empty)
 import Data.List (genericReplicate)
 import Control.Exception (displayException)
-import Data.Foldable (asum)
+import Control.Applicative ((<|>))
 
 import Control.Sequencer.Internal
 
@@ -41,4 +41,9 @@ trySynchronous x = fmap Right x `catchSynchronous` (return . Left)
 
 serialize :: (Traversable ins, Alternative outs, Monad m)
           => (m a -> m (outs b)) -> ins (m a) -> m (outs b)
-serialize f = fmap asum . sequence . fmap f
+serialize f = serialize' f (<|>)
+
+serialize' :: (Traversable ins, Alternative outs, Monad m)
+          => (m a -> m (outs b)) -> (outs b -> outs b -> outs b) -> ins (m a) -> m (outs b)
+serialize' f g xs | null xs = return empty
+                  | otherwise = (fmap (foldr1 g) . traverse f) xs
