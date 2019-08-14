@@ -1,12 +1,8 @@
 module Main where
 
-import Data.List (genericReplicate)
-
 import Control.Sequencer
 import Test.Tasty
 import Test.Tasty.LeanCheck
-import Data.List
-import Control.Applicative
 
 -- import qualified Internal
 -- import qualified External
