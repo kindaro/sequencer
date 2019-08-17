@@ -28,8 +28,11 @@ predictValue :: forall a. [Case a] -> Either SomeException a
 predictValue cases = fromJust . asum . (++ [failure]) . fmap caseToOutcome $ cases
     where failure = (Just . Left . SomeException) SequencingFailure
 
-predictLog :: forall a. [Case a] -> [Case a]
-predictLog = takeWhile (isNothing . caseToOutcome)
+predictLog :: forall a. [Case a] -> [SomeException]
+predictLog = fmap unwrap . takeWhile (isNothing . caseToOutcome)
+    where unwrap (ExpectedException e) = normalizeException e
+          unwrap _ = error "Impossible code path: \
+            \`caseToOutcome` returns nothing only when given `ExpectedException`."
 
 predictRemainder :: forall a. [Case a] -> [Case a]
 predictRemainder xs = fromMaybe [ ] . fmap (\n -> cutFrom n xs)

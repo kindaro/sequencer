@@ -36,14 +36,14 @@ runM action xs = runWriter . flip runStateT xs . runCatchT $ action
 
 -- A nicer projection of a result of a run of M with effects captured.
 data Res a b = Res
-     { log :: [Case a]
+     { log :: [SomeException]
      , value :: Either SomeException b
      , remainder :: [Case a]
      } deriving (Show, Eq)
 
 projectTarget :: RawRes a b -> Res a b
 projectTarget ((value, remainder), log') = Res{..}
-    where log = (catMaybes . fmap retractException . toList) log'
+    where log = toList log'
 
 
 -- * "Case" data type.
@@ -88,3 +88,10 @@ retractException e = listToMaybe . catMaybes $
 -- May return Nothing if an exception is not one that may be contained in a "case".
 retractExampleAction :: forall a. Either SomeException a -> Maybe (Case a)
 retractExampleAction = either retractException (Just . Result)
+
+
+-- * Exception normalizer.
+
+normalizeException :: forall e. Exception e => e -> SomeException
+normalizeException = either id (error "Impossible code path: \
+                            \ `runCatch . throwM` is always `Left`.") . runCatch . throwM
