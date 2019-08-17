@@ -1,10 +1,9 @@
 module Redundant where
 
 import Prelude hiding (log)
-import Data.Typeable
 import qualified Data.List as List
 import Control.Exception
-import Data.Function (on)
+import Data.Foldable (asum)
 import Data.Maybe
 
 import Control.Sequencer (redundant, SequencingFailure(..))
@@ -19,23 +18,23 @@ prop_redundant_all xs = left == right
         action = redundant (replicate (length xs) exampleAction)
 
 
-projectSource :: forall a b. Typeable a => [Case a] -> Res a b
-projectSource xs = case predictOutcome xs of
-    Left e -> Res { log = xs, value = Left e, remainder = [ ] }
-    Right (n, value') -> case List.genericSplitAt n xs of
-                            (log, (_: remainder)) -> Res { value = Right value', .. }
-                            _ -> error "Impossible code path"
+projectSource :: forall a. [Case a] -> Res a a
+projectSource xs = let value     = predictValue     xs
+                       log       = predictLog       xs
+                       remainder = predictRemainder xs
+                   in Res{..}
 
-predictOutcome :: forall a b. Typeable a => [Case a] -> Either SomeException (Word, b)
-predictOutcome cases = case fmap (List.minimumBy ((compare :: Word -> Word -> Ordering) `on` fst)) . mconcat . (fmap . fmap) (pure @[])
-                     $ ($ (zip [0 :: Word ..] cases)) <$> loci of
-                            Just (n, r') -> let r = (fromJust (error "") . caseToOutcome) r'
-                                            in  Right (n, r)
-                            Nothing  -> (Left . SomeException) SequencingFailure
+predictValue :: forall a. [Case a] -> Either SomeException a
+predictValue cases = fromJust . asum . (++ [failure]) . fmap caseToOutcome $ cases
+    where failure = (Just . Left . SomeException) SequencingFailure
 
-    where locus :: forall u. (u -> Case a) -> [(Word, Case a)] -> Maybe (Word, Case a)
-          locus f = List.find (flip is f . snd)
-          loci = [locus SuddenException, locus AsynchronousException, locus Result]
+predictLog :: forall a. [Case a] -> [Case a]
+predictLog = takeWhile (isNothing . caseToOutcome)
+
+predictRemainder :: forall a. [Case a] -> [Case a]
+predictRemainder xs = fromMaybe [ ] . fmap (\n -> cutFrom n xs)
+                                    . List.findIndex isJust . fmap caseToOutcome $ xs
+    where cutFrom n = tail . snd . splitAt n
 
 caseToOutcome :: Case a -> Maybe (Either SomeException a)
 caseToOutcome (AsynchronousException e) = (Just . Left . SomeException) e
