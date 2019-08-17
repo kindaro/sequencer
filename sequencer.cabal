@@ -10,6 +10,7 @@ common commons
     build-depends: base ^>=4.12.0.0
                  , mtl
                  , exceptions
+                 , transformers
     default-language: Haskell2010
     default-extensions: ExistentialQuantification
                       , ScopedTypeVariables
@@ -41,13 +42,34 @@ test-suite verify
                  , tasty-hunit
                  , tasty-hedgehog
                  , tasty-leancheck
+                 , tasty-quickcheck
+                 , containers
+                 , QuickCheck
+                 , base-compat
+                 , generic-arbitrary
+                 , generic-deriving
+    default-extensions: StandaloneDeriving
+                      , ConstraintKinds
+                      , DeriveDataTypeable
+                      , DeriveGeneric
+                      , FlexibleContexts
+                      , FlexibleInstances
+                      , MultiParamTypeClasses
+                      , QuantifiedConstraints
+                      , RankNTypes
+                      , RecordWildCards
+                      , ScopedTypeVariables
+                      , TypeFamilies
+    ghc-options: -fdefer-typed-holes
     hs-source-dirs: verify
     type: exitcode-stdio-1.0
     main-is: Main.hs
---     other-modules: Common
---                  , Internal
---                  , External
-
+    other-modules: Assets
+                 , Redundant
+                 , Instances.Control.Exception
+                 , Instances.Foreign.C.Types
+                 , Instances.System.IO
+                 , Instances.Utils.GenericArbitrary
 test-suite speculate
     import: commons
     build-depends: sequencer

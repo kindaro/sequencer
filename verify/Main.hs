@@ -1,26 +1,12 @@
 module Main where
 
-import Control.Sequencer
 import Test.Tasty
-import Test.Tasty.LeanCheck
+import Test.Tasty.QuickCheck
 
--- import qualified Internal
--- import qualified External
+import Redundant
+
 
 main :: IO ()
-main = do
+main = defaultMain $
 
-    -- Do this:
-    --
-    -- 1. Run `insistent` many times over randomly failing action.
-
-    defaultMain $
-
-    -- Laws:
-
-        testGroup "Laws of `serialize`:"
-            [ testProperty "serialize (fmap pure) == sequence -- with Maybe [Int]"
-                \mxs -> serialize (fmap pure) mxs == sequence @Maybe (mxs :: Maybe [Int])
-            , testProperty "serialize (fmap pure) == sequence -- with [Maybe Int]"
-                \mxs -> serialize (fmap pure) mxs == sequence @[] (mxs :: [Maybe Int])
-            ]
+    testProperty "redundant can be retracted" prop_redundant_all

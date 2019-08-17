@@ -4,7 +4,7 @@ module Control.Sequencer
     , redundant
     , serialize
     , trySynchronous
-    , SequencingFailure
+    , SequencingFailure(..)
     ) where
 
 import Control.Exception (Exception, SomeException)
