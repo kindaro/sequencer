@@ -7,8 +7,8 @@ module Control.Sequencer
     , SequencingFailure(..)
     ) where
 
-import Control.Exception (Exception, SomeException)
-import Control.Monad.Catch (MonadCatch)
+import Control.Exception (Exception, SomeException(..), ArithException)
+import Control.Monad.Catch (MonadCatch, throwM)
 import Control.Monad.Writer.Strict (MonadWriter, tell)
 import Control.Applicative (Alternative, empty)
 import Data.List (genericReplicate)
@@ -34,7 +34,15 @@ insistent n = redundant . genericReplicate n
 
 redundant :: (MonadCatch m, MonadWriter (q SomeException) m, Foldable f, Alternative q)
           => f (m a) -> m a
-redundant = foldr1 f where f x y = x `catchSynchronous` (\e -> (tell . pure) e *> y)
+redundant = foldr f (throwM SequencingFailure)
+  where
+    f x y = do
+        r' <- trySynchronous @ArithException x
+        case r' of
+            Left e  -> do
+                (tell . pure . SomeException) e
+                y
+            Right r -> return r
 
 trySynchronous :: forall e m a. (Exception e, MonadCatch m) => m a -> m (Either e a)
 trySynchronous x = fmap Right x `catchSynchronous` (return . Left)
