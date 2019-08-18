@@ -2,7 +2,6 @@ module Control.Sequencer
     ( independent
     , insistent
     , redundant
-    , serialize
     , trySynchronous
     , SequencingFailure(..)
     ) where
@@ -13,7 +12,6 @@ import Control.Monad.Writer.Strict (MonadWriter, tell)
 import Control.Applicative (Alternative, empty)
 import Data.List (genericReplicate)
 import Control.Exception (displayException)
-import Control.Applicative ((<|>))
 
 import Control.Sequencer.Internal
 
@@ -25,7 +23,7 @@ instance Exception SequencingFailure where displayException _ = "sequencing fail
 independent :: forall a m e ins outs.
                     (Exception e, MonadCatch m, Traversable ins, Alternative outs)
             => (e -> m ()) -> ins (m a) -> m (outs a)
-independent logger = serialize f
+independent logger = undefined
     where f u = fmap pure u `catchSynchronous` \e -> logger e *> return empty
 
 insistent :: (MonadCatch m, MonadWriter (q SomeException) m, Alternative q)
@@ -46,12 +44,3 @@ redundant = foldr f (throwM SequencingFailure)
 
 trySynchronous :: forall e m a. (Exception e, MonadCatch m) => m a -> m (Either e a)
 trySynchronous x = fmap Right x `catchSynchronous` (return . Left)
-
-serialize :: (Traversable ins, Alternative outs, Monad m)
-          => (m a -> m (outs b)) -> ins (m a) -> m (outs b)
-serialize f = serialize' f (<|>)
-
-serialize' :: (Traversable ins, Alternative outs, Monad m)
-          => (m a -> m (outs b)) -> (outs b -> outs b -> outs b) -> ins (m a) -> m (outs b)
-serialize' f g xs | null xs = return empty
-                  | otherwise = (fmap (foldr1 g) . traverse f) xs
