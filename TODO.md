@@ -6,3 +6,5 @@
 * Rewrite everything with `trySynchronous` instead of `catchSynchronous`.
 * Write an equivalent of `redundant` with continuation transformer? Or decide it to be a separate
   recursion scheme.
+
+* Adjust type variables in the definition of `redundant`.

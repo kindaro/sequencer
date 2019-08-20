@@ -10,13 +10,9 @@ import Control.Monad.State
 import Control.Monad.Catch
 import Control.Monad.Catch.Pure
 import Data.Sequence (Seq)
-import GHC.Generics (Generic)
-import Data.Maybe
 import Data.Foldable (toList)
-import Data.Either
 import Control.Exception (ArithException, ArrayException, IOException, SomeAsyncException)
 
-import Instances.Utils.GenericArbitrary
 import Instances.Control.Exception ()
 
 
