@@ -5,7 +5,6 @@ module Assets where
 
 import Prelude hiding (log)
 import Test.QuickCheck
-import Control.Exception
 import Control.Monad.Writer
 import Control.Monad.State
 import Control.Monad.Catch
@@ -14,6 +13,8 @@ import Data.Sequence (Seq)
 import GHC.Generics (Generic)
 import Data.Maybe
 import Data.Foldable (toList)
+import Data.Either
+import Control.Exception (ArithException, ArrayException, IOException, SomeAsyncException)
 
 import Instances.Utils.GenericArbitrary
 import Instances.Control.Exception ()
@@ -22,72 +23,41 @@ import Instances.Control.Exception ()
 -- * Foundational types.
 
 -- A constraint for "useful" monads.
-type MonadCheck m a = (MonadWriter (Seq SomeException) m, MonadState [Case a] m, MonadCatch m)
+type MonadCheck e m a = (MonadWriter (Seq e) m, MonadState [Either e a] m, MonadCatch m)
 
 -- The specific monad "useful" for me.
-type M a b = CatchT (StateT [Case a] (Writer (Seq SomeException))) b
+type M e a b = CatchT (StateT [Either e a] (Writer (Seq e))) b
 
 -- Result type as returned by running an M action.
-type RawRes a b = ((Either SomeException b, [Case a]), Seq SomeException)
+type RawRes e a b = ((Either SomeException b, [Either e a]), Seq e)
 
 -- The runner for M.
-runM :: M a b -> [Case a] -> RawRes a b
+runM :: M e a b -> [Either e a] -> RawRes e a b
 runM action xs = runWriter . flip runStateT xs . runCatchT $ action
 
 -- A nicer projection of a result of a run of M with effects captured.
-data Res a b = Res
-     { log :: [SomeException]
+data Res e a b = Res
+     { log :: [e]
      , value :: Either SomeException b
-     , remainder :: [Case a]
+     , remainder :: [Either e a]
      } deriving (Show, Eq)
 
-projectTarget :: RawRes a b -> Res a b
+projectTarget :: RawRes e a b -> Res e a b
 projectTarget ((value, remainder), log') = Res{..}
     where log = toList log'
 
-
--- * "Case" data type.
-
-data Case a = ExpectedException ArithException
-            | SuddenException ArrayException
-            | AsynchronousException SomeAsyncException
-            | Result a
-
 instance {-# overlappable #-} Exception e => Eq e where
-    e == e' = displayException e == displayException e'
-
-deriving instance Eq a => Eq (Case a)
-deriving instance Show a => Show (Case a)
-deriving instance Generic (Case a)
-
-instance Arbitrary a => Arbitrary (Case a) where
-    arbitrary = genericArbitrary
+    (==) = compareExceptions
 
 
 -- * Example action.
 
-exampleAction :: MonadCheck m a => m a
+exampleAction :: forall e m a. (Exception e, MonadCheck e m a) => m a
 exampleAction = do
     u <- get
     case u of
         [ ] -> error "Action invoked while no items in state."
-        (x: xs) -> do
-            put xs
-            case x of
-                ExpectedException e     -> throwM e
-                SuddenException e       -> throwM e
-                AsynchronousException e -> throwM e
-                Result r                -> return r
-
-retractException :: forall a. SomeException -> Maybe (Case a)
-retractException e = listToMaybe . catMaybes $
-    [f ExpectedException, f SuddenException, f AsynchronousException] <*> [e]
-  where f :: forall e. Exception e => (e -> Case a) -> SomeException -> Maybe (Case a)
-        f g = fmap g . fromException
-
--- May return Nothing if an exception is not one that may be contained in a "case".
-retractExampleAction :: forall a. Either SomeException a -> Maybe (Case a)
-retractExampleAction = either retractException (Just . Result)
+        (x: xs) -> put xs >> (either (throwM @m @e) return) x
 
 
 -- * Exception normalizer.
@@ -95,3 +65,17 @@ retractExampleAction = either retractException (Just . Result)
 normalizeException :: forall e. Exception e => e -> SomeException
 normalizeException = either id (error "Impossible code path: \
                             \ `runCatch . throwM` is always `Left`.") . runCatch . throwM
+
+convertException :: forall e e'. (Exception e, Exception e') => e -> Maybe e'
+convertException = fromException . toException
+
+compareExceptions :: forall e e'. (Exception e, Exception e') => e -> e' -> Bool
+compareExceptions e e' = displayException e == displayException e'
+
+instance Arbitrary SomeException where
+    arbitrary = oneof
+        [ normalizeException <$> arbitrary @ArithException
+        , normalizeException <$> arbitrary @ArrayException
+        , normalizeException <$> arbitrary @IOException
+        , normalizeException <$> arbitrary @SomeAsyncException
+        ]

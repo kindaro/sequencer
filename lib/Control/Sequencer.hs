@@ -1,13 +1,14 @@
 module Control.Sequencer
     ( independent
-    , insistent
+    -- , insistent
     , redundant
     , trySynchronous
+    , triesSynchronous
     , SequencingFailure(..)
     ) where
 
-import Control.Exception (Exception, SomeException(..), ArithException)
-import Control.Monad.Catch (MonadCatch, throwM)
+import Control.Exception (Exception, SomeException(..))
+import Control.Monad.Catch (MonadCatch, throwM, Handler)
 import Control.Monad.Writer.Strict (MonadWriter, tell)
 import Control.Applicative (Alternative, empty)
 import Data.List (genericReplicate)
@@ -26,21 +27,20 @@ independent :: forall a m e ins outs.
 independent logger = undefined
     where f u = fmap pure u `catchSynchronous` \e -> logger e *> return empty
 
-insistent :: (MonadCatch m, MonadWriter (q SomeException) m, Alternative q)
-          => Word -> m a -> m a
-insistent n = redundant . genericReplicate n
+-- insistent :: (MonadCatch m, MonadWriter (q SomeException) m, Alternative q)
+--           => Word -> m a -> m a
+-- insistent n = redundant . genericReplicate n
 
-redundant :: (MonadCatch m, MonadWriter (q SomeException) m, Foldable f, Alternative q)
-          => f (m a) -> m a
-redundant = foldr f (throwM SequencingFailure)
+redundant :: forall e m f q a. (MonadCatch m, Foldable f)
+          => [Handler m e] -> (e -> m ()) -> f (m a) -> m a
+redundant handlers logger = foldr f (throwM SequencingFailure)
   where
-    f x y = do
-        r' <- trySynchronous @ArithException x
-        case r' of
-            Left e  -> do
-                (tell . pure . SomeException) e
-                y
-            Right r -> return r
+    f :: m a -> m a -> m a
+    f x y = triesSynchronous handlers x >>= either (\e -> logger e >> y) return
 
 trySynchronous :: forall e m a. (Exception e, MonadCatch m) => m a -> m (Either e a)
 trySynchronous x = fmap Right x `catchSynchronous` (return . Left)
+
+triesSynchronous :: forall m a b. MonadCatch m => [Handler m b] -> m a -> m (Either b a)
+triesSynchronous handlers action =
+    fmap Right action `catchesSynchronous` (fmap . fmap) Left handlers

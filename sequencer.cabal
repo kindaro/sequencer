@@ -48,6 +48,7 @@ test-suite verify
                  , base-compat
                  , generic-arbitrary
                  , generic-deriving
+                 , hashable
     default-extensions: StandaloneDeriving
                       , ConstraintKinds
                       , DeriveDataTypeable

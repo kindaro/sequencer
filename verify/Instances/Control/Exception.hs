@@ -33,9 +33,6 @@ import Prelude.Compat
 
 import Test.QuickCheck (Arbitrary(..), Gen, arbitraryBoundedEnum)
 
-instance Arbitrary SomeException where
-    arbitrary = SomeException <$> (arbitrary :: Gen AssertionFailed)
-
 instance Arbitrary IOException where
     arbitrary = genericArbitrary
 
