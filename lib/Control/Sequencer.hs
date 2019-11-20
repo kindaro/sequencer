@@ -61,11 +61,11 @@ redundant_ = redundant [defaultHandler] defaultLogger
 defaultLogger :: forall m a. Monad m => a -> m ()
 defaultLogger = const (return ())
 
-defaultHandler :: forall m. Monad m => Handler m ()
+defaultHandler :: forall m. Monad m => Handler m SomeException
 defaultHandler = Handler handleAll
   where
-    handleAll :: SomeException -> m ()
-    handleAll _ = return ()
+    handleAll :: SomeException -> m SomeException
+    handleAll e = return e
 
 trySynchronous :: forall e m a. (Exception e, MonadCatch m) => m a -> m (Either e a)
 trySynchronous x = fmap Right x `catchSynchronous` (return . Left)
