@@ -7,6 +7,8 @@ module Control.Sequencer
     , redundant_
     , trySynchronous
     , triesSynchronous
+    , defaultHandler
+    , defaultLogger
     , SequencingFailure(..)
     ) where
 
