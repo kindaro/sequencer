@@ -71,16 +71,3 @@ test-suite verify
                  , Instances.Foreign.C.Types
                  , Instances.System.IO
                  , Instances.Utils.GenericArbitrary
-test-suite speculate
-    import: commons
-    build-depends: sequencer
-                 , leancheck
-                 , speculate
-                 , fitspec
-                 , extrapolate
-    hs-source-dirs: verify
-    type: exitcode-stdio-1.0
-    main-is: Speculate.hs
---    other-modules: Common
---                 , Internal
---                 , External
