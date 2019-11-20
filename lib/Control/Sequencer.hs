@@ -30,11 +30,11 @@ independent :: forall a m e ins outs.
 independent handlers logger = foldr f (return empty)
   where
     f :: m a -> m (outs a) -> m (outs a)
-    f x ys = do
-              r <- triesSynchronous handlers x
+    f mx mys = do
+              r <- triesSynchronous handlers mx
               case r of
-                  Left e -> logger e >> ys
-                  Right v -> fmap (pure v <|>) ys
+                  Left e -> logger e >> mys
+                  Right v -> fmap (pure v <|>) mys
 
 independent_ :: forall m ins outs a. (MonadCatch m, Traversable ins, Alternative outs)
              => ins (m a) -> m (outs a)
