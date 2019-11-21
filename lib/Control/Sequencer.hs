@@ -18,6 +18,7 @@ import Control.Applicative (Alternative, empty)
 import Data.List (genericReplicate)
 import Control.Exception (displayException)
 import Control.Applicative
+import Data.Witherable
 
 import Control.Sequencer.Internal
 
@@ -26,20 +27,20 @@ instance Exception SequencingFailure where displayException _ = "sequencing fail
 
 -- | Run all the actions independently from each other, collect the results and log the errors
 -- with the supplied logger.
-independent :: forall a m e ins outs.
-                    (MonadCatch m, Traversable ins, Alternative outs)
-            => [Handler m e] -> (e -> m ()) -> ins (m a) -> m (outs a)
-independent handlers logger = foldr f (return empty)
+independent :: forall a m e w.
+                    (MonadCatch m, Witherable w)
+            => [Handler m e] -> (e -> m ()) -> w (m a) -> m (w a)
+independent handlers logger = wither f
   where
-    f :: m a -> m (outs a) -> m (outs a)
-    f mx mys = do
-              r <- triesSynchronous handlers mx
-              case r of
-                  Left e -> logger e >> mys
-                  Right v -> fmap (pure v <|>) mys
+    f :: m a -> m (Maybe a)
+    f mx = do
+        r <- triesSynchronous handlers mx
+        case r of
+            Left e -> logger e *> return Nothing
+            Right v -> return (Just v)
 
-independent_ :: forall m ins outs a. (MonadCatch m, Traversable ins, Alternative outs)
-             => ins (m a) -> m (outs a)
+independent_ :: forall m w a. (MonadCatch m, Witherable w)
+             => w (m a) -> m (w a)
 independent_ = independent [defaultHandler] defaultLogger
 
 insistent :: forall e m n a . (Integral n, MonadCatch m)
