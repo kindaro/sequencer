@@ -1,7 +1,7 @@
 cabal-version: 2.4
 
 name: sequencer
-version: 0.1.0.0
+version: 0.2.0.0
 license: ISC
 author: Ignat Insarov
 maintainer: kindaro@gmail.com
