@@ -1,14 +1,14 @@
 module Control.Sequencer
     ( independent
-    , independent_
+    -- , independent_
     , insistent
-    , insistent_
+    -- , insistent_
     , redundant
-    , redundant_
+    -- , redundant_
     , trySynchronous
     , triesSynchronous
-    , defaultHandler
-    , defaultLogger
+    , handleAllSynchronous
+    , logToNowhere
     , SequencingFailure(..)
     ) where
 
@@ -39,16 +39,9 @@ independent handlers logger = wither f
             Left e -> logger e *> return Nothing
             Right v -> return (Just v)
 
-independent_ :: forall m w a. (MonadCatch m, Witherable w)
-             => w (m a) -> m (w a)
-independent_ = independent [defaultHandler] defaultLogger
-
 insistent :: forall e m n a . (Integral n, MonadCatch m)
           => [Handler m e] -> (e -> m ()) -> n -> m a -> m a
 insistent handlers logger n = redundant handlers logger . genericReplicate n
-
-insistent_ :: (Integral n, MonadCatch m) => n -> m a -> m a
-insistent_ n = redundant_ . genericReplicate n
 
 redundant :: forall e m f a. (MonadCatch m, Foldable f)
           => [Handler m e] -> (e -> m ()) -> f (m a) -> m a
@@ -57,15 +50,11 @@ redundant handlers logger = foldr f (throwM SequencingFailure)
     f :: m a -> m a -> m a
     f x y = triesSynchronous handlers x >>= either (\e -> logger e >> y) return
 
--- | Log to nowhere and ignore all synchronous exceptions.
-redundant_ :: forall m f a. (MonadCatch m, Foldable f) => f (m a) -> m a
-redundant_ = redundant [defaultHandler] defaultLogger
+logToNowhere :: forall m a. Monad m => a -> m ()
+logToNowhere = const (return ())
 
-defaultLogger :: forall m a. Monad m => a -> m ()
-defaultLogger = const (return ())
-
-defaultHandler :: forall m. Monad m => Handler m SomeException
-defaultHandler = Handler handleAll
+handleAllSynchronous :: forall m. Monad m => Handler m SomeException
+handleAllSynchronous = Handler handleAll
   where
     handleAll :: SomeException -> m SomeException
     handleAll e = return e
