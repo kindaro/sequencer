@@ -5,6 +5,7 @@ module Control.Sequencer
     -- , insistent_
     , redundant
     -- , redundant_
+    , cool
     , trySynchronous
     , triesSynchronous
     , handleAllSynchronous
@@ -12,13 +13,12 @@ module Control.Sequencer
     , SequencingFailure(..)
     ) where
 
-import Control.Exception (Exception, SomeException(..))
+import Control.Exception (Exception, SomeException(..), displayException)
 import Control.Monad.Catch (MonadCatch, throwM, Handler(..))
-import Control.Applicative (Alternative, empty)
 import Data.List (genericReplicate)
-import Control.Exception (displayException)
-import Control.Applicative
 import Data.Witherable
+import Control.Monad.IO.Class
+import Control.Concurrent
 
 import Control.Sequencer.Internal
 
@@ -42,6 +42,29 @@ independent handlers logger = wither f
 insistent :: forall e m n a . (Integral n, MonadCatch m)
           => [Handler m e] -> (e -> m ()) -> n -> m a -> m a
 insistent handlers logger n = redundant handlers logger . genericReplicate n
+
+-- | Like `insistent`, but accepts a number of milliseconds to sleep between trying.
+cool :: forall e m n a . (Integral n, MonadCatch m, MonadIO m)
+          => [Handler m e] -> (e -> m ()) -> Int -> n -> m a -> m a
+cool handlers logger delay n x
+    | n < 1 = throwM SequencingFailure 
+    | otherwise = fmap (either id id) cherryOnTop
+  where
+    actions = redundant handlers logger (genericReplicate (n - 1) delayed)
+    action  = redundant handlers logger [x]
+    handleSequencingFailure = Handler @_ @_ @SequencingFailure (\_ -> action)
+
+    -- If the action fails, suspend execution.
+    delayed = do
+        y <- trySynchronous @SomeException x
+        case y of
+            Left e -> do
+                liftIO (threadDelay delay)
+                throwM e
+            Right z -> return z
+
+    -- If the chain of actions and delays fails, catch `SequencingFailure` and try one last time.
+    cherryOnTop = triesSynchronous [handleSequencingFailure] actions
 
 redundant :: forall e m f a. (MonadCatch m, Foldable f)
           => [Handler m e] -> (e -> m ()) -> f (m a) -> m a

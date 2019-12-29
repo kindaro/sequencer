@@ -8,3 +8,6 @@
   recursion scheme.
 
 * Adjust type variables in the definition of `redundant`.
+    -- to what? Did I do that?
+
+* I should check things. Expecially this fancy new `cool` function.
